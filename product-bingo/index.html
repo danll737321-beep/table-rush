@@ -96,7 +96,10 @@ details ol{margin:8px 0 0;padding-left:1.3em}
 @media (prefers-reduced-motion:reduce){.cell.hl,.cell.bad,.board.fresh .cell{animation:none}}
 .levelrow{display:flex;flex-direction:column;gap:6px}
 .seg.levels{display:grid;grid-template-columns:repeat(3,1fr);border-radius:12px}
-.seg.levels button{padding:7px 6px;font-size:.8rem;line-height:1.25;text-wrap:balance;border-right:1px solid var(--line)}
+.seg.levels button{padding:7px 6px;font-size:.8rem;line-height:1.25;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:1px}
+.seg.levels button b{font-weight:700}
+.seg.levels button span{font-size:.75rem;opacity:.85}
+.sizerow{display:flex;justify-content:center}
 .seg.levels button:last-child{border-right:0}
 .levelinfo{font-size:.8rem;color:var(--muted);text-align:center}
 .eqwrap{position:relative;padding-top:1.3em}
@@ -131,6 +134,10 @@ details ol{margin:8px 0 0;padding-left:1.3em}
         <button id="lv2"></button>
         <button id="lv3"></button>
       </div>
+      <div class="sizerow"><div class="seg" role="group">
+        <button id="sz7"></button>
+        <button id="sz8"></button>
+      </div></div>
       <div class="levelinfo" id="levelinfo"></div>
     </div>
   </header>
@@ -171,17 +178,17 @@ details ol{margin:8px 0 0;padding-left:1.3em}
 
 <script>
 const ORIGINAL=[14,63,54,16,54,21,30,9,48,20,63,15,12,35,36,35,16,32,42,16,21,45,24,56,35,24,15,49,36,18,64,30,27,8,14,28,10,9,72,25,18,56,16,81,12,40,6,8,64];
-/* Level 1 is tuned so a child playing the computer wins about 7 games in 10 (simulated):
-   small board, factors 1–5, hints on, computer rarely spots its own win and never blocks. */
-const LEVELS={1:{n:6,win:4,maxF:5,ai:1},2:{n:7,win:4,maxF:9,ai:2},3:{n:8,win:5,maxF:9,ai:3}};
+/* Level sets the difficulty (factors, line length, computer skill); board size is chosen separately.
+   Level 1 is tuned so a child playing the computer wins about 7 games in 10 on 7×7 or 8×8 (simulated). */
+const LEVELS={1:{win:4,maxF:5,ai:1},2:{win:4,maxF:9,ai:2},3:{win:5,maxF:9,ai:3}};
 const DIRS=[[0,1],[1,0],[1,1],[1,-1]];
 let N=8, WIN=5, MAXF=9;
 
 const T={
  zh:{
   title:'乘積<span>賓果</span>', other:'EN', pvp:'雙人', ai:'對電腦', newg:'新遊戲',
-  lv:['第 1 級・入門','第 2 級・進階','第 3 級・挑戰'],
-  lvinfo:['6×6 盤面・乘數 1–5・連 4 格・自動提示','7×7 盤面・乘數 1–9・連 4 格','8×8 盤面・乘數 1–9・連 5 格'],
+  lv:[['第 1 級','入門'],['第 2 級','進階'],['第 3 級','挑戰']], size:n=>`${n}×${n} 盤面`,
+  lvinfo:['乘數 1–5・連 4 格・自動提示','乘數 1–9・連 4 格','乘數 1–9・連 5 格'],
   first:'先手',
   names:{pvp:['玩家 1','玩家 2'],ai:['你','電腦']},
   placeA:n=>`${n} 先手：把夾子 A 放在一個數字上`,
@@ -207,12 +214,12 @@ const T={
    '如果乘積已經沒有空格，就換一步走法。',
    `先在橫、直或斜線上連成 ${w} 格的人獲勝；沒有步可走時，格子多者勝。`,
    '先手第一步不佔格，所以每局自動輪流先手。',
-   '三個等級：第 1 級適合剛學乘法的小朋友（乘數只到 5、自動提示、電腦比較好打敗）；第 2 級可勾選「原版盤面」使用紙本的 7×7。']
+   '等級決定難度：第 1 級適合剛學乘法的小朋友（乘數只到 5、自動提示、電腦比較好打敗）。盤面大小 7×7 或 8×8 可自由選，8×8 格子多、比較容易連成線；第 2、3 級選 7×7 時可勾選「原版盤面」使用紙本數字。']
  },
  en:{
   title:'Product <span>Bingo</span>', other:'中文', pvp:'2 Players', ai:'vs Computer', newg:'New Game',
-  lv:['Level 1 · Starter','Level 2 · Explorer','Level 3 · Champion'],
-  lvinfo:['6×6 board · factors 1–5 · 4 in a row · hints on','7×7 board · factors 1–9 · 4 in a row','8×8 board · factors 1–9 · 5 in a row'],
+  lv:[['Level 1','Starter'],['Level 2','Explorer'],['Level 3','Champion']], size:n=>`${n}×${n} board`,
+  lvinfo:['factors 1–5 · 4 in a row · hints on','factors 1–9 · 4 in a row','factors 1–9 · 5 in a row'],
   first:'1st',
   names:{pvp:['Player 1','Player 2'],ai:['You','Computer']},
   placeA:n=>`${n} goes first: place clip A on any number`,
@@ -238,21 +245,23 @@ const T={
    'If the product has no open square left, choose a different move.',
    `First to get ${w} in a row across, down, or diagonally wins. If no moves remain, more squares wins.`,
    'The first player claims nothing on turn one, so the starting player alternates every game.',
-   'Three levels: Level 1 is for new learners (factors up to 5, hints on, an easier computer). On Level 2 you can check “Original board” to play the 7×7 paper version.']
+   'Levels set the difficulty: Level 1 is for new learners (factors up to 5, hints on, an easier computer). Board size (7×7 or 8×8) is your choice; 8×8 has more room to make a line. On Levels 2 and 3 with 7×7, check “Original board” to use the paper numbers.']
  }
 };
 
-let mode='pvp', lang='zh', keepOrig=false, level=1, gameNo=0, S;
+let mode='pvp', lang='zh', keepOrig=false, level=1, size=8, gameNo=0, S;
 let hintBy={1:true,2:false,3:false};
 const $=id=>document.getElementById(id);
 try{ mode=localStorage.getItem('pb-mode')||'pvp';
      lang=localStorage.getItem('pb-lang')||'zh'; keepOrig=localStorage.getItem('pb-orig')==='1';
      const lv=+localStorage.getItem('pb-level'); if(LEVELS[lv]) level=lv;
+     size=localStorage.getItem('pb-size')==='7'?7:8;
      const h=JSON.parse(localStorage.getItem('pb-hints')||'null'); if(h) hintBy={...hintBy,...h}; }catch(e){}
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const L=()=>T[lang];
 const names=()=>L().names[mode];
 const hint=()=>!!hintBy[level];
+const canOrig=()=>size===7&&LEVELS[level].maxF===9;
 
 /* Random n×n board: every product a×b in the level's range appears once (guarantees every
    number on the strip has a partner), then extra draws from the same pool fill the rest. */
@@ -266,8 +275,8 @@ function randomBoard(n,maxF){
 }
 
 function newGame(){
-  const v=LEVELS[level]; N=v.n; WIN=v.win; MAXF=v.maxF;
-  const vals=(level===2&&keepOrig)?ORIGINAL:randomBoard(N,MAXF);
+  const v=LEVELS[level]; N=size; WIN=v.win; MAXF=v.maxF;
+  const vals=(canOrig()&&keepOrig)?ORIGINAL:randomBoard(N,MAXF);
   const starter=gameNo%2; gameNo++;
   S={cells:vals.map(v=>({v,o:null})),clips:[null,null],tent:null,sel:0,turn:starter,starter,phase:'placeA',win:null,over:false,busy:false,msg:null,last:null};
   setMsg('placeA',[P(starter)]);
@@ -443,11 +452,12 @@ function renderStatic(){
   document.documentElement.lang=lang==='zh'?'zh-Hant':'en';
   $('h1').innerHTML=l.title; $('langbtn').textContent=l.other;
   $('m-pvp').textContent=l.pvp; $('m-ai').textContent=l.ai; $('newbtn').textContent=l.newg;
-  [1,2,3].forEach(k=>{const b=$('lv'+k); b.textContent=l.lv[k-1]; b.setAttribute('aria-pressed',level===k);});
+  [1,2,3].forEach(k=>{const b=$('lv'+k); b.innerHTML=`<b>${l.lv[k-1][0]}</b><span>${l.lv[k-1][1]}</span>`; b.setAttribute('aria-pressed',level===k);});
+  [7,8].forEach(k=>{const b=$('sz'+k); b.textContent=l.size(k); b.setAttribute('aria-pressed',size===k);});
   $('levelinfo').textContent=l.lvinfo[level-1];
   $('hintlbl').textContent=l.hint; $('origlbl').textContent=l.orig; $('goal').textContent=l.goal(WIN);
   $('hint').checked=hint();
-  $('origwrap').hidden=level!==2;
+  $('origwrap').hidden=!canOrig();
   $('f0').textContent=l.first; $('f1').textContent=l.first;
   $('rulesT').textContent=l.rulesT; $('rules').innerHTML=l.rules(WIN,N,MAXF).map(r=>`<li>${r}</li>`).join('');
 }
@@ -511,8 +521,10 @@ $('orig').onchange=e=>{keepOrig=e.target.checked;save('pb-orig',keepOrig?'1':'0'
 $('langbtn').onclick=()=>{lang=lang==='zh'?'en':'zh';save('pb-lang',lang);renderStatic();render();};
 function setMode(m){mode=m;save('pb-mode',m);newGame();}
 function setLevel(v){level=v;save('pb-level',String(v));newGame();}
+function setSize(v){size=v;save('pb-size',String(v));newGame();}
 $('m-pvp').onclick=()=>setMode('pvp'); $('m-ai').onclick=()=>setMode('ai');
 [1,2,3].forEach(k=>$('lv'+k).onclick=()=>setLevel(k));
+[7,8].forEach(k=>$('sz'+k).onclick=()=>setSize(k));
 $('newbtn').onclick=newGame;
 newGame();
 </script>
