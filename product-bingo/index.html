@@ -56,7 +56,8 @@ button:focus-visible{outline:3px solid var(--clip);outline-offset:2px}
 .board{display:grid;grid-template-columns:repeat(8,1fr);gap:1px;border:2px solid var(--ink);background:var(--line);border-radius:4px;overflow:hidden}
 .cell{aspect-ratio:1;max-width:100%;min-width:0;border:0;background:var(--cell);
   font-family:var(--display);font-weight:700;font-size:clamp(.95rem,4.1vw,1.35rem);font-variant-numeric:tabular-nums;position:relative;padding:0;transition:background .15s}
-.board.n7 .cell{font-size:clamp(1rem,4.6vw,1.45rem)}
+.board[data-n="7"] .cell{font-size:clamp(1rem,4.6vw,1.45rem)}
+.board[data-n="6"] .cell{font-size:clamp(1.2rem,5.6vw,1.7rem)}
 .cell.o0{background:var(--p1-soft);color:var(--p1)} .cell.o1{background:var(--p2-soft);color:var(--p2)}
 .cell.o0::after,.cell.o1::after{content:"";position:absolute;inset:14%;border-radius:50%;border:2.5px solid currentColor;transform:rotate(-8deg)}
 .cell.hl{background:var(--clip-soft);color:var(--clip);animation:pulse 1s ease-in-out infinite}
@@ -92,8 +93,19 @@ summary{cursor:pointer;font-weight:700}
 details ol{margin:8px 0 0;padding-left:1.3em}
 .pl .first{font-size:.68rem;font-weight:700;line-height:1;padding:3px 6px;border-radius:999px;border:1.5px solid currentColor;flex:none}
 .pl.p0 .first{color:var(--p1)} .pl.p1 .first{color:var(--p2)}
-.variant .seg button{font-size:.8rem}
 @media (prefers-reduced-motion:reduce){.cell.hl,.cell.bad,.board.fresh .cell{animation:none}}
+.levelrow{display:flex;flex-direction:column;gap:6px}
+.seg.levels{display:grid;grid-template-columns:repeat(3,1fr);border-radius:12px}
+.seg.levels button{padding:7px 6px;font-size:.8rem;line-height:1.25;text-wrap:balance;border-right:1px solid var(--line)}
+.seg.levels button:last-child{border-right:0}
+.levelinfo{font-size:.8rem;color:var(--muted);text-align:center}
+.eqwrap{position:relative;padding-top:1.3em}
+.cheer{position:absolute;left:0;right:0;top:0;text-align:center;font-family:var(--display);font-weight:800;font-size:1.05rem;opacity:0;pointer-events:none}
+.cheer.c0{color:var(--p1)} .cheer.c1{color:var(--p2)}
+.cheer.show{animation:cheer 1.3s ease-out both}
+@keyframes cheer{0%{opacity:0;transform:translateY(8px) scale(.9)}15%{opacity:1;transform:translateY(-6px) scale(1.08)}70%{opacity:1;transform:translateY(-10px)}100%{opacity:0;transform:translateY(-18px)}}
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:20}
+@media (prefers-reduced-motion:reduce){.cheer.show{animation:none;opacity:1}}
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -113,11 +125,13 @@ details ol{margin:8px 0 0;padding-left:1.3em}
       </div>
       <button class="btn" id="newbtn"></button>
     </div>
-    <div class="modes variant">
-      <div class="seg" role="group">
-        <button id="v-std"></button>
-        <button id="v-quick"></button>
+    <div class="levelrow">
+      <div class="seg levels" role="group">
+        <button id="lv1"></button>
+        <button id="lv2"></button>
+        <button id="lv3"></button>
       </div>
+      <div class="levelinfo" id="levelinfo"></div>
     </div>
   </header>
 
@@ -128,7 +142,10 @@ details ol{margin:8px 0 0;padding-left:1.3em}
 
   <div class="board" id="board"></div>
 
-  <div class="eq" id="eq"></div>
+  <div class="eqwrap">
+    <div class="cheer" id="cheer" aria-live="polite"></div>
+    <div class="eq" id="eq"></div>
+  </div>
   <div class="msg" id="msg" aria-live="polite"></div>
 
   <div class="clipsel" id="clipsel">
@@ -150,17 +167,22 @@ details ol{margin:8px 0 0;padding-left:1.3em}
     <ol id="rules"></ol>
   </details>
 </div>
+<canvas id="confetti" aria-hidden="true"></canvas>
 
 <script>
 const ORIGINAL=[14,63,54,16,54,21,30,9,48,20,63,15,12,35,36,35,16,32,42,16,21,45,24,56,35,24,15,49,36,18,64,30,27,8,14,28,10,9,72,25,18,56,16,81,12,40,6,8,64];
-const VARIANTS={std:{n:8,win:5},quick:{n:7,win:4}};
+/* Level 1 is tuned so a child playing the computer wins about 7 games in 10 (simulated):
+   small board, factors 1–5, hints on, computer rarely spots its own win and never blocks. */
+const LEVELS={1:{n:6,win:4,maxF:5,ai:1},2:{n:7,win:4,maxF:9,ai:2},3:{n:8,win:5,maxF:9,ai:3}};
 const DIRS=[[0,1],[1,0],[1,1],[1,-1]];
-let N=8, WIN=5;
+let N=8, WIN=5, MAXF=9;
 
 const T={
  zh:{
   title:'乘積<span>賓果</span>', other:'EN', pvp:'雙人', ai:'對電腦', newg:'新遊戲',
-  std:'標準 8×8・連 5', quick:'快速 7×7・連 4', first:'先手',
+  lv:['第 1 級・入門','第 2 級・進階','第 3 級・挑戰'],
+  lvinfo:['6×6 盤面・乘數 1–5・連 4 格・自動提示','7×7 盤面・乘數 1–9・連 4 格','8×8 盤面・乘數 1–9・連 5 格'],
+  first:'先手',
   names:{pvp:['玩家 1','玩家 2'],ai:['你','電腦']},
   placeA:n=>`${n} 先手：把夾子 A 放在一個數字上`,
   placeB:n=>`${n}：放夾子 B，再找出乘積的格子`,
@@ -169,25 +191,29 @@ const T={
   tapHl:()=>'點亮起來的格子佔下',
   find:p=>`在盤面上找到 ${p} 並點它`,
   taken:()=>'這格已經被佔了',
-  wrong:(v,p)=>`這格是 ${v}，不是 ${p}`,
+  wrong:(v,p)=>`這格是 ${v}，不是 ${p}，再找找看`,
   won:(n,w)=>`${n} 連成 ${w} 格，獲勝！`,
+  aiWonSoft:()=>'電腦這次贏了，差一點點！再玩一局吧',
   stuck:(w,a,b)=>`沒有步可走。${w?w+' 格子較多，獲勝':'平手'}（${a}:${b}）`,
   pick:n=>`${n}：選一個夾子移動`,
   thinking:()=>'電腦在算……',
   moveClip:k=>`點數字條，把夾子 ${k} 移過去`,
   clipBtn:(k,n)=>`移動夾子 ${k}（在 ${n}）`,
+  cheers:['答對了！','太棒了！','好厲害！','算得真快！','完全正確！','繼續加油！'],
   hint:'顯示提示', orig:'原版盤面', goal:w=>`連成 ${w} 格獲勝`, rulesT:'玩法',
-  rules:(w,n)=>['先手玩家把夾子 A 放在任一數字上（不佔格）。',
+  rules:(w,n,f)=>[`先手玩家把夾子 A 放在 1–${f} 的任一數字上（不佔格）。`,
    '後手玩家放夾子 B，算出 A × B，點盤面上等於答案的空格佔下。',
    '之後輪流：每回合只移動<b>一個</b>夾子（兩個夾子可放同一數字），算乘積後佔格。',
    '如果乘積已經沒有空格，就換一步走法。',
    `先在橫、直或斜線上連成 ${w} 格的人獲勝；沒有步可走時，格子多者勝。`,
    '先手第一步不佔格，所以每局自動輪流先手。',
-   `「新遊戲」會換一組新的 ${n}×${n} 盤面數字。快速模式可勾選「原版盤面」使用紙本的 7×7。`]
+   '三個等級：第 1 級適合剛學乘法的小朋友（乘數只到 5、自動提示、電腦比較好打敗）；第 2 級可勾選「原版盤面」使用紙本的 7×7。']
  },
  en:{
   title:'Product <span>Bingo</span>', other:'中文', pvp:'2 Players', ai:'vs Computer', newg:'New Game',
-  std:'Standard 8×8 · 5 in a row', quick:'Quick 7×7 · 4 in a row', first:'1st',
+  lv:['Level 1 · Starter','Level 2 · Explorer','Level 3 · Champion'],
+  lvinfo:['6×6 board · factors 1–5 · 4 in a row · hints on','7×7 board · factors 1–9 · 4 in a row','8×8 board · factors 1–9 · 5 in a row'],
+  first:'1st',
   names:{pvp:['Player 1','Player 2'],ai:['You','Computer']},
   placeA:n=>`${n} goes first: place clip A on any number`,
   placeB:n=>`${n}: place clip B, then find the product`,
@@ -196,38 +222,43 @@ const T={
   tapHl:()=>'Tap a highlighted square to claim it',
   find:p=>`Find ${p} on the board and tap it`,
   taken:()=>'That square is already taken',
-  wrong:(v,p)=>`That square is ${v}, not ${p}`,
+  wrong:(v,p)=>`That square is ${v}, not ${p}. Keep looking!`,
   won:(n,w)=>`${n} got ${w} in a row and wins!`,
+  aiWonSoft:()=>'The computer won this time. So close! Play again?',
   stuck:(w,a,b)=>`No moves left. ${w?w+' has more squares and wins':'It’s a tie'} (${a}:${b})`,
   pick:n=>`${n}: choose a clip to move`,
   thinking:()=>'Computer is thinking…',
   moveClip:k=>`Tap a number to move clip ${k}`,
   clipBtn:(k,n)=>`Move clip ${k} (on ${n})`,
+  cheers:['Correct!','Awesome!','Great job!','So fast!','Nailed it!','Keep going!'],
   hint:'Show hints', orig:'Original board', goal:w=>`${w} in a row wins`, rulesT:'How to play',
-  rules:(w,n)=>['The first player places clip A on any number (no square is claimed).',
+  rules:(w,n,f)=>[`The first player places clip A on any number from 1 to ${f} (no square is claimed).`,
    'The second player places clip B, multiplies A × B, and claims an open square with that product.',
    'Then take turns: move <b>one</b> clip each turn (both clips may share a number), multiply, and claim a square.',
    'If the product has no open square left, choose a different move.',
    `First to get ${w} in a row across, down, or diagonally wins. If no moves remain, more squares wins.`,
    'The first player claims nothing on turn one, so the starting player alternates every game.',
-   `New Game deals a fresh ${n}×${n} board. In Quick mode, check “Original board” to play the 7×7 paper version.`]
+   'Three levels: Level 1 is for new learners (factors up to 5, hints on, an easier computer). On Level 2 you can check “Original board” to play the 7×7 paper version.']
  }
 };
 
-let mode='pvp', hint=false, lang='zh', keepOrig=false, variant='std', gameNo=0, S;
+let mode='pvp', lang='zh', keepOrig=false, level=1, gameNo=0, S;
+let hintBy={1:true,2:false,3:false};
 const $=id=>document.getElementById(id);
-try{ hint=localStorage.getItem('pb-hint')==='1'; mode=localStorage.getItem('pb-mode')||'pvp';
+try{ mode=localStorage.getItem('pb-mode')||'pvp';
      lang=localStorage.getItem('pb-lang')||'zh'; keepOrig=localStorage.getItem('pb-orig')==='1';
-     variant=localStorage.getItem('pb-var')==='quick'?'quick':'std'; }catch(e){}
+     const lv=+localStorage.getItem('pb-level'); if(LEVELS[lv]) level=lv;
+     const h=JSON.parse(localStorage.getItem('pb-hints')||'null'); if(h) hintBy={...hintBy,...h}; }catch(e){}
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const L=()=>T[lang];
 const names=()=>L().names[mode];
+const hint=()=>!!hintBy[level];
 
-/* Random n×n board: every product a×b (2≤a≤b≤9) appears once — guarantees 4,6,8,9 and every square —
-   then extra draws from the same pool fill the rest, shuffled. */
-function randomBoard(n){
-  const pool=[];
-  for(let a=2;a<=9;a++) for(let b=a;b<=9;b++) pool.push(a*b);
+/* Random n×n board: every product a×b in the level's range appears once (guarantees every
+   number on the strip has a partner), then extra draws from the same pool fill the rest. */
+function randomBoard(n,maxF){
+  const pool=[], lo=maxF<=5?1:2;
+  for(let a=lo;a<=maxF;a++) for(let b=a;b<=maxF;b++) pool.push(a*b);
   const cells=[...pool];
   while(cells.length<n*n) cells.push(pool[Math.floor(Math.random()*pool.length)]);
   for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
@@ -235,13 +266,14 @@ function randomBoard(n){
 }
 
 function newGame(){
-  const v=VARIANTS[variant]; N=v.n; WIN=v.win;
-  const vals=(variant==='quick'&&keepOrig)?ORIGINAL:randomBoard(N);
+  const v=LEVELS[level]; N=v.n; WIN=v.win; MAXF=v.maxF;
+  const vals=(level===2&&keepOrig)?ORIGINAL:randomBoard(N,MAXF);
   const starter=gameNo%2; gameNo++;
   S={cells:vals.map(v=>({v,o:null})),clips:[null,null],tent:null,sel:0,turn:starter,starter,phase:'placeA',win:null,over:false,busy:false,msg:null,last:null};
   setMsg('placeA',[P(starter)]);
   const b=$('board'); b.classList.remove('fresh'); void b.offsetWidth; b.classList.add('fresh');
   setTimeout(()=>b.classList.remove('fresh'),450);
+  $('cheer').textContent='';
   renderStatic(); render(); maybeAI();
 }
 /* Messages are stored as key + args so they re-translate on language switch. {p:i} = player name. */
@@ -268,7 +300,7 @@ function legalMoves(clips,cells,phase){
   const out=[], idxs=phase==='placeB'?[1]:[0,1];
   for(const idx of idxs){
     const other=clips[1-idx];
-    for(let n=1;n<=9;n++){
+    for(let n=1;n<=MAXF;n++){
       if(phase==='move'&&n===clips[idx]) continue;
       const p=n*other;
       for(const cell of open(cells,p)) out.push({idx,n,p,cell});
@@ -277,6 +309,7 @@ function legalMoves(clips,cells,phase){
   return out;
 }
 const isAI=()=>mode==='ai'&&S.turn===1;
+const isHumanTurn=()=>!(mode==='ai'&&S.turn===1);
 
 function placeA(n){
   S.clips[0]=n; S.turn=1-S.turn; S.phase='placeB'; S.sel=1;
@@ -290,7 +323,7 @@ function tapNum(n){
   const other=S.clips[1-idx], p=n*other;
   if(!open(S.cells,p).length){ S.tent=null; setMsg('noCell',[n,other,p],'warn'); render(); return; }
   S.tent={idx,n,p};
-  hint?setMsg('tapHl'):setMsg('find',[p]);
+  hint()?setMsg('tapHl'):setMsg('find',[p]);
   render();
 }
 function tapCell(i){
@@ -300,25 +333,40 @@ function tapCell(i){
     c.o!==null?setMsg('taken',[],'warn'):setMsg('wrong',[c.v,S.tent.p],'warn');
     render(); const el=$('board').children[i]; el.classList.remove('bad'); void el.offsetWidth; el.classList.add('bad'); return;
   }
+  cheer(S.turn);
   claim(i);
+}
+function cheer(who){
+  const el=$('cheer'), list=L().cheers;
+  el.textContent=list[Math.floor(Math.random()*list.length)]+'  +1 ⭐';
+  el.className='cheer c'+who; void el.offsetWidth; el.classList.add('show');
 }
 const count=o=>S.cells.filter(c=>c.o===o).length;
 function claim(i){
   const t=S.tent; S.clips[t.idx]=t.n; S.cells[i].o=S.turn; S.tent=null; S.last=i;
   const w=lineAt(S.cells,i,S.turn);
-  if(w){ S.win=w; S.over=true; setMsg('won',[P(S.turn),WIN],'big'); render(); return; }
+  if(w){
+    S.win=w; S.over=true;
+    if(mode==='ai'&&S.turn===1&&level===1) setMsg('aiWonSoft',[],'big');
+    else setMsg('won',[P(S.turn),WIN],'big');
+    render();
+    if(!(mode==='ai'&&S.turn===1)) confetti(S.turn);
+    return;
+  }
   S.turn=1-S.turn; S.phase='move';
   const moves=legalMoves(S.clips,S.cells,'move');
   if(!moves.length){
     S.over=true; const a=count(0),b=count(1);
-    setMsg('stuck',[P(a===b?null:(a>b?0:1)),a,b],'big'); render(); return;
+    setMsg('stuck',[P(a===b?null:(a>b?0:1)),a,b],'big'); render();
+    if(a!==b&&!(mode==='ai'&&b>a)) confetti(a>b?0:1);
+    return;
   }
   if(!moves.some(m=>m.idx===S.sel)) S.sel=moves[0].idx;
   setMsg('pick',[P(S.turn)]);
   render(); maybeAI();
 }
 
-/* ---- computer ---- */
+/* ---- computer: skill 1 plays loosely, 2 attacks and blocks, 3 also avoids handing over a win ---- */
 function potential(cells,i,owner){
   const r=Math.floor(i/N),c=i%N,w=WIN===4?[1,4,14,60]:[1,3,9,30,120];let s=0;
   for(const [dr,dc] of DIRS) for(let k=-(WIN-1);k<=0;k++){
@@ -330,33 +378,63 @@ function potential(cells,i,owner){
   }
   return s;
 }
-function scoreMove(m){
+function winsWith(m,who){const cells=S.cells.map(c=>({...c})); cells[m.cell].o=who; return !!lineAt(cells,m.cell,who);}
+function scoreMove(m,skill){
   const me=S.turn, op=1-me, cells=S.cells.map(c=>({...c}));
   cells[m.cell].o=me;
   if(lineAt(cells,m.cell,me)) return 1e5;
   let s=potential(S.cells,m.cell,me)+0.8*potential(S.cells,m.cell,op);
-  const test=S.cells.map(c=>({...c})); test[m.cell].o=op;
-  if(lineAt(test,m.cell,op)) s+=3000;
-  const clips=[...S.clips]; clips[m.idx]=m.n;
-  for(const r of legalMoves(clips,cells,'move')){
-    const t2=cells.map(c=>({...c})); t2[r.cell].o=op;
-    if(lineAt(t2,r.cell,op)){ s-=5000; break; }
+  if(winsWith(m,op)) s+=3000;
+  if(skill>=3){
+    const clips=[...S.clips]; clips[m.idx]=m.n;
+    for(const r of legalMoves(clips,cells,'move')){
+      const t2=cells.map(c=>({...c})); t2[r.cell].o=op;
+      if(lineAt(t2,r.cell,op)){ s-=5000; break; }
+    }
   }
   return s+Math.random()*2;
+}
+function chooseAI(moves){
+  const skill=LEVELS[level].ai;
+  if(skill===1){
+    const wins=moves.filter(m=>winsWith(m,S.turn));
+    if(wins.length&&Math.random()<0.15) return wins[0];
+    return moves[Math.floor(Math.random()*moves.length)];
+  }
+  let best=moves[0],bs=-Infinity;
+  for(const m of moves){const s=scoreMove(m,skill); if(s>bs){bs=s;best=m;}}
+  return best;
 }
 function maybeAI(){
   if(!isAI()||S.over) return;
   S.busy=true; const game=S; render();
   setTimeout(()=>{
     if(game!==S) return;
-    if(S.phase==='placeA'){ S.busy=false; placeA(3+Math.floor(Math.random()*6)); return; }
-    const moves=legalMoves(S.clips,S.cells,S.phase);
-    let best=moves[0],bs=-Infinity;
-    for(const m of moves){const s=scoreMove(m); if(s>bs){bs=s;best=m;}}
+    if(S.phase==='placeA'){ S.busy=false; placeA(1+Math.floor(Math.random()*MAXF)); return; }
+    const best=chooseAI(legalMoves(S.clips,S.cells,S.phase));
     S.sel=best.idx; S.tent={idx:best.idx,n:best.n,p:best.p};
     setMsg('thinking'); render();
     setTimeout(()=>{ if(game!==S) return; S.busy=false; claim(best.cell); },900);
   },500);
+}
+
+/* ---- confetti (skipped when reduced motion is requested) ---- */
+function confetti(who){
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=$('confetti'), ctx=cv.getContext('2d'), dpr=window.devicePixelRatio||1;
+  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; ctx.scale(dpr,dpr);
+  const cs=getComputedStyle(document.documentElement);
+  const cols=[cs.getPropertyValue(who===0?'--p1':'--p2'),cs.getPropertyValue('--clip'),'#f2c230',cs.getPropertyValue(who===0?'--p2':'--p1')].map(s=>s.trim());
+  const ps=Array.from({length:120},()=>({x:innerWidth/2+(Math.random()-.5)*80,y:innerHeight*.45,
+    vx:(Math.random()-.5)*11,vy:-Math.random()*12-4,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.3,
+    w:6+Math.random()*6,h:4+Math.random()*4,c:cols[Math.floor(Math.random()*cols.length)]}));
+  let f=0;
+  (function tick(){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    for(const p of ps){p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();}
+    if(++f<150) requestAnimationFrame(tick); else ctx.clearRect(0,0,innerWidth,innerHeight);
+  })();
 }
 
 /* ---- render ---- */
@@ -365,12 +443,13 @@ function renderStatic(){
   document.documentElement.lang=lang==='zh'?'zh-Hant':'en';
   $('h1').innerHTML=l.title; $('langbtn').textContent=l.other;
   $('m-pvp').textContent=l.pvp; $('m-ai').textContent=l.ai; $('newbtn').textContent=l.newg;
-  $('v-std').textContent=l.std; $('v-quick').textContent=l.quick;
-  $('v-std').setAttribute('aria-pressed',variant==='std'); $('v-quick').setAttribute('aria-pressed',variant==='quick');
+  [1,2,3].forEach(k=>{const b=$('lv'+k); b.textContent=l.lv[k-1]; b.setAttribute('aria-pressed',level===k);});
+  $('levelinfo').textContent=l.lvinfo[level-1];
   $('hintlbl').textContent=l.hint; $('origlbl').textContent=l.orig; $('goal').textContent=l.goal(WIN);
-  $('origwrap').hidden=variant!=='quick';
+  $('hint').checked=hint();
+  $('origwrap').hidden=level!==2;
   $('f0').textContent=l.first; $('f1').textContent=l.first;
-  $('rulesT').textContent=l.rulesT; $('rules').innerHTML=l.rules(WIN,N).map(r=>`<li>${r}</li>`).join('');
+  $('rulesT').textContent=l.rulesT; $('rules').innerHTML=l.rules(WIN,N,MAXF).map(r=>`<li>${r}</li>`).join('');
 }
 function render(){
   const nm=names(), l=L();
@@ -380,10 +459,10 @@ function render(){
   $('pl0').classList.toggle('on',!S.over&&S.turn===0); $('pl1').classList.toggle('on',!S.over&&S.turn===1);
   $('m-pvp').setAttribute('aria-pressed',mode==='pvp'); $('m-ai').setAttribute('aria-pressed',mode==='ai');
 
-  const hl=S.tent&&(hint||isAI())?new Set(open(S.cells,S.tent.p)):new Set();
+  const hl=S.tent&&(hint()||isAI())?new Set(open(S.cells,S.tent.p)):new Set();
   const win=new Set(S.win||[]), b=$('board');
   if(b.children.length!==S.cells.length){
-    b.innerHTML=''; b.style.gridTemplateColumns=`repeat(${N},1fr)`; b.classList.toggle('n7',N===7);
+    b.innerHTML=''; b.style.gridTemplateColumns=`repeat(${N},1fr)`; b.dataset.n=N;
     b.setAttribute('aria-label',`${N}×${N}`);
     S.cells.forEach((c,i)=>{const el=document.createElement('button');el.className='cell';el.id='cell'+i;el.onclick=()=>tapCell(i);b.appendChild(el);});
   }
@@ -406,11 +485,14 @@ function render(){
       bt.textContent=l.clipBtn('AB'[k],S.clips[k]); bt.disabled=S.busy||isAI()||!moves.some(x=>x.idx===k);});}
 
   const strip=$('strip');
-  if(!strip.children.length) for(let n=1;n<=9;n++){const el=document.createElement('button');el.className='num';el.onclick=()=>tapNum(n);strip.appendChild(el);}
+  if(strip.children.length!==MAXF){
+    strip.innerHTML=''; strip.style.gridTemplateColumns=`repeat(${MAXF},1fr)`;
+    for(let n=1;n<=MAXF;n++){const el=document.createElement('button');el.className='num';el.onclick=()=>tapNum(n);strip.appendChild(el);}
+  }
   let legalN=null;
-  if(hint&&!S.over&&(S.phase==='move'||S.phase==='placeB')){
+  if(hint()&&!S.over&&(S.phase==='move'||S.phase==='placeB')){
     const idx=S.phase==='placeB'?1:S.sel; legalN=new Set(legalMoves(S.clips,S.cells,S.phase).filter(x=>x.idx===idx).map(x=>x.n));}
-  for(let n=1;n<=9;n++){
+  for(let n=1;n<=MAXF;n++){
     const el=strip.children[n-1]; let tags='';
     [0,1].forEach(k=>{
       if(t&&t.idx===k){ if(S.clips[k]===n) tags+=`<span class="tag old">${'AB'[k]}</span>`; if(t.n===n) tags+=`<span class="tag ghost">${'AB'[k]}</span>`; }
@@ -423,14 +505,14 @@ function render(){
 
 $('c0').onclick=()=>{if(S.busy||isAI())return;S.sel=0;S.tent=null;setMsg('moveClip',['A']);render();};
 $('c1').onclick=()=>{if(S.busy||isAI())return;S.sel=1;S.tent=null;setMsg('moveClip',['B']);render();};
-$('hint').checked=hint; $('orig').checked=keepOrig;
-$('hint').onchange=e=>{hint=e.target.checked;save('pb-hint',hint?'1':'0');render();};
+$('orig').checked=keepOrig;
+$('hint').onchange=e=>{hintBy[level]=e.target.checked;save('pb-hints',JSON.stringify(hintBy));render();};
 $('orig').onchange=e=>{keepOrig=e.target.checked;save('pb-orig',keepOrig?'1':'0');newGame();};
 $('langbtn').onclick=()=>{lang=lang==='zh'?'en':'zh';save('pb-lang',lang);renderStatic();render();};
 function setMode(m){mode=m;save('pb-mode',m);newGame();}
-function setVariant(v){variant=v;save('pb-var',v);newGame();}
+function setLevel(v){level=v;save('pb-level',String(v));newGame();}
 $('m-pvp').onclick=()=>setMode('pvp'); $('m-ai').onclick=()=>setMode('ai');
-$('v-std').onclick=()=>setVariant('std'); $('v-quick').onclick=()=>setVariant('quick');
+[1,2,3].forEach(k=>$('lv'+k).onclick=()=>setLevel(k));
 $('newbtn').onclick=newGame;
 newGame();
 </script>
