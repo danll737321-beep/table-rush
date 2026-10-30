@@ -179,8 +179,9 @@ details ol{margin:8px 0 0;padding-left:1.3em}
 <script>
 const ORIGINAL=[14,63,54,16,54,21,30,9,48,20,63,15,12,35,36,35,16,32,42,16,21,45,24,56,35,24,15,49,36,18,64,30,27,8,14,28,10,9,72,25,18,56,16,81,12,40,6,8,64];
 /* Level sets the difficulty (factors, line length, computer skill); board size is chosen separately.
-   Level 1 is tuned so a child playing the computer wins about 7 games in 10 on 7×7 or 8×8 (simulated). */
-const LEVELS={1:{win:4,maxF:5,ai:1},2:{win:4,maxF:9,ai:2},3:{win:5,maxF:9,ai:3}};
+   Level 1 is tuned so a child playing the computer wins about 7 games in 10 on 7×7 or 8×8 (simulated).
+   Factors are always 1–9. */
+const LEVELS={1:{win:4,maxF:9,ai:1},2:{win:4,maxF:9,ai:2},3:{win:5,maxF:9,ai:3}};
 const DIRS=[[0,1],[1,0],[1,1],[1,-1]];
 let N=8, WIN=5, MAXF=9;
 
@@ -188,7 +189,7 @@ const T={
  zh:{
   title:'乘積<span>賓果</span>', other:'EN', pvp:'雙人', ai:'對電腦', newg:'新遊戲',
   lv:[['第 1 級','入門'],['第 2 級','進階'],['第 3 級','挑戰']], size:n=>`${n}×${n} 盤面`,
-  lvinfo:['乘數 1–5・連 4 格・自動提示','乘數 1–9・連 4 格','乘數 1–9・連 5 格'],
+  lvinfo:['連 4 格・自動提示・電腦較弱','連 4 格・電腦會擋','連 5 格・電腦最強'],
   first:'先手',
   names:{pvp:['玩家 1','玩家 2'],ai:['你','電腦']},
   placeA:n=>`${n} 先手：把夾子 A 放在一個數字上`,
@@ -214,12 +215,12 @@ const T={
    '如果乘積已經沒有空格，就換一步走法。',
    `先在橫、直或斜線上連成 ${w} 格的人獲勝；沒有步可走時，格子多者勝。`,
    '先手第一步不佔格，所以每局自動輪流先手。',
-   '等級決定難度：第 1 級適合剛學乘法的小朋友（乘數只到 5、自動提示、電腦比較好打敗）。盤面大小 7×7 或 8×8 可自由選，8×8 格子多、比較容易連成線；第 2、3 級選 7×7 時可勾選「原版盤面」使用紙本數字。']
+   '等級決定難度：第 1 級適合剛學乘法的小朋友（自動提示、電腦比較好打敗）。盤面大小 7×7 或 8×8 可自由選，8×8 格子多、比較容易連成線；選 7×7 時可勾選「原版盤面」使用紙本數字。']
  },
  en:{
   title:'Product <span>Bingo</span>', other:'中文', pvp:'2 Players', ai:'vs Computer', newg:'New Game',
   lv:[['Level 1','Starter'],['Level 2','Explorer'],['Level 3','Champion']], size:n=>`${n}×${n} board`,
-  lvinfo:['factors 1–5 · 4 in a row · hints on','factors 1–9 · 4 in a row','factors 1–9 · 5 in a row'],
+  lvinfo:['4 in a row · hints on · easy computer','4 in a row · computer blocks','5 in a row · strongest computer'],
   first:'1st',
   names:{pvp:['Player 1','Player 2'],ai:['You','Computer']},
   placeA:n=>`${n} goes first: place clip A on any number`,
@@ -245,7 +246,7 @@ const T={
    'If the product has no open square left, choose a different move.',
    `First to get ${w} in a row across, down, or diagonally wins. If no moves remain, more squares wins.`,
    'The first player claims nothing on turn one, so the starting player alternates every game.',
-   'Levels set the difficulty: Level 1 is for new learners (factors up to 5, hints on, an easier computer). Board size (7×7 or 8×8) is your choice; 8×8 has more room to make a line. On Levels 2 and 3 with 7×7, check “Original board” to use the paper numbers.']
+   'Levels set the difficulty: Level 1 is for new learners (hints on, an easier computer). Board size (7×7 or 8×8) is your choice; 8×8 has more room to make a line. With 7×7, check “Original board” to use the paper numbers.']
  }
 };
 
@@ -261,7 +262,7 @@ const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const L=()=>T[lang];
 const names=()=>L().names[mode];
 const hint=()=>!!hintBy[level];
-const canOrig=()=>size===7&&LEVELS[level].maxF===9;
+const canOrig=()=>size===7;
 
 /* Random n×n board: every product a×b in the level's range appears once (guarantees every
    number on the strip has a partner), then extra draws from the same pool fill the rest. */
