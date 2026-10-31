@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Division Check · Table Rush</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdf6e9;
+    --ink: #3a2e1f;
+    --muted: #7a6a52;
+    --faint: #a5977f;
+    --accent: #ff8a3d;
+    --good: #4caf7d;
+    --bad: #e85d5d;
+    --warn: #f2b544;
+    --div: #e0803a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Baloo 2', -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg); color: var(--ink); padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  .back-link { font-size: 14px; color: var(--accent); text-decoration: none; font-weight: 700; }
+  h1 { text-align: center; font-size: 28px; font-weight: 800; margin: 10px 0 2px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+
+  .card {
+    background: white; border-radius: 24px; padding: 22px 20px;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.06); border: 2px solid var(--div);
+  }
+  .card + .card { margin-top: 14px; }
+  .btn {
+    display: block; width: 100%; background: var(--accent); color: white; border: none;
+    padding: 13px 10px; border-radius: 999px; font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: 'Baloo 2', sans-serif; margin-top: 14px;
+  }
+  .btn.secondary { background: #f0ece0; color: var(--ink); }
+
+  .part-list { list-style: none; padding: 0; margin: 8px 0 0; }
+  .part-list li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1ead9; font-size: 14px; }
+  .part-list li:last-child { border-bottom: none; }
+  .part-num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--div); color: white;
+    font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .note { font-size: 13px; color: var(--muted); line-height: 1.5; margin-top: 12px; }
+
+  /* quiz */
+  .top-bar { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px; }
+  .part-tag { background: #fbe6d4; color: #a85a1f; border-radius: 999px; padding: 3px 12px; font-weight: 700; }
+  .timer { background: #fff2e0; color: #d9701f; border-radius: 999px; padding: 3px 12px; font-weight: 700; }
+  .progress { height: 8px; background: rgba(0,0,0,0.08); border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+  .progress-fill { height: 100%; width: 0; background: var(--div); transition: width .25s ease; }
+  .q-counter { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--faint); text-transform: uppercase; }
+  .q-text { text-align: center; font-size: 34px; font-weight: 700; margin: 8px 0 6px; line-height: 1.2; }
+  .q-text.story { font-size: 19px; text-align: left; line-height: 1.45; }
+  .q-sub { text-align: center; font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+
+  .answer-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 6px 0 12px; }
+  .ans-box {
+    min-width: 110px; height: 60px; border-radius: 16px; border: 2px dashed #d8cfba; background: var(--bg);
+    font-size: 30px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0 10px; color: var(--ink);
+  }
+  .ans-box.small { min-width: 80px; }
+  .ans-box.active { border-style: solid; border-color: var(--accent); }
+  .ans-box.empty { color: #cfc4ad; }
+  .r-label { font-size: 24px; font-weight: 800; color: var(--muted); }
+  .r-help { text-align: center; font-size: 12px; color: var(--faint); margin-top: -4px; margin-bottom: 10px; }
+
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 280px; margin: 0 auto; }
+  .keypad-btn {
+    background: #dcecf5; color: var(--ink); border: none; border-radius: 14px; font-size: 20px;
+    font-weight: 700; padding: 13px 0; cursor: pointer; font-family: 'Baloo 2', sans-serif;
+  }
+  .keypad-btn.muted { background: #eef0ea; color: var(--muted); }
+  .keypad-btn:active { transform: translateY(1px); }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .choice {
+    text-align: left; background: #faf6ee; border: 2px solid #ece3cf; border-radius: 16px;
+    padding: 12px 14px; font-size: 16px; font-family: 'Baloo 2', sans-serif; color: var(--ink);
+    cursor: pointer; line-height: 1.35;
+  }
+  .choice.big { text-align: center; font-size: 24px; font-weight: 700; }
+  .choice-row { display: flex; gap: 10px; }
+  .choice-row .choice { flex: 1; }
+  .choice.selected { border-color: var(--accent); background: #fff2e0; }
+
+  /* results */
+  .score-big { text-align: center; font-size: 40px; font-weight: 800; margin: 4px 0 0; }
+  .score-sub { text-align: center; color: var(--muted); font-size: 14px; }
+  .part-result { border-radius: 18px; padding: 14px 16px; background: #faf6ee; margin-top: 12px; border-left: 6px solid var(--good); }
+  .part-result.flag { border-left-color: var(--bad); background: #fdf0ee; }
+  .part-result.watch { border-left-color: var(--warn); background: #fdf6e6; }
+  .pr-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .pr-name { font-weight: 800; font-size: 16px; }
+  .pr-zh { display: block; font-weight: 500; color: var(--faint); font-size: 12px; }
+  .pr-score { font-weight: 800; font-size: 15px; white-space: nowrap; }
+  .pr-bar { height: 7px; background: rgba(0,0,0,0.08); border-radius: 999px; overflow: hidden; margin: 6px 0 8px; }
+  .pr-fill { height: 100%; border-radius: 999px; }
+  .pr-text { font-size: 13.5px; line-height: 1.5; }
+  .pr-text b { color: var(--ink); }
+  .pr-next { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .reading { background: var(--ink); color: white; border-radius: 18px; padding: 14px 16px; margin-top: 14px; font-size: 14px; line-height: 1.5; }
+  .reading b { color: #ffd2a8; }
+  .review-item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1ead9; font-size: 14px; }
+  .review-item:last-child { border-bottom: none; }
+  .review-q { flex: 1; min-width: 0; }
+  .review-a { text-align: right; white-space: nowrap; }
+  .review-a .yours { color: var(--bad); font-weight: 700; }
+  .review-a .right { color: var(--good); font-weight: 700; }
+  h3.section { font-size: 17px; margin: 0 0 4px; }
+
+  @media (max-width: 480px) {
+    body { padding: 16px 12px 48px; }
+    h1 { font-size: 24px; }
+    .q-text { font-size: 28px; }
+    .q-text.story { font-size: 17px; }
+    .ans-box { min-width: 96px; height: 54px; font-size: 26px; }
+    .ans-box.small { min-width: 70px; }
+    .keypad { max-width: 100%; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="../">← Table Rush</a>
+  <h1>Division Check 除法診斷</h1>
+  <div class="subtitle">Find out which part of division to practice next</div>
+
+  <!-- START -->
+  <div id="startScreen">
+    <div class="card">
+      <h3 class="section">6 short parts, about 15 minutes</h3>
+      <ul class="part-list">
+        <li><span class="part-num">1</span><span><b>Quick Facts</b> — 12 facts, timed (try for under 60 seconds)</span></li>
+        <li><span class="part-num">2</span><span><b>Place Value</b> — hundreds and zeros in the answer</span></li>
+        <li><span class="part-num">3</span><span><b>One-Digit Divisors</b></span></li>
+        <li><span class="part-num">4</span><span><b>Two-Digit Divisors</b> — guess, check, fix</span></li>
+        <li><span class="part-num">5</span><span><b>What Division Means</b> — groups and decimals</span></li>
+        <li><span class="part-num">6</span><span><b>Remainders</b> — what to do with what's left</span></li>
+      </ul>
+      <div class="note">This is not a test for a grade. Use scratch paper. Answers are not shown until the end, so just do your best.</div>
+      <button class="btn" onclick="startQuiz()">Start →</button>
+    </div>
+    <div class="card" id="lastResultCard" style="display:none;">
+      <h3 class="section">Last checks</h3>
+      <div id="lastResults"></div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quizScreen" style="display:none;">
+    <div class="top-bar">
+      <span class="part-tag" id="partTag">Part 1</span>
+      <span class="timer" id="timer" style="display:none;">⏱ 0s</span>
+    </div>
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="card">
+      <div class="q-counter" id="qCounter">QUESTION 1 OF 30</div>
+      <div class="q-text" id="qText"></div>
+      <div class="q-sub" id="qSub"></div>
+
+      <div id="numArea">
+        <div class="answer-row">
+          <div class="ans-box active empty" id="boxQ" onclick="setActive('q')">?</div>
+          <span class="r-label" id="rLabel">R</span>
+          <div class="ans-box small empty" id="boxR" onclick="setActive('r')">0</div>
+        </div>
+        <div class="r-help" id="rHelp">Tap the R box for the remainder. Leave it 0 if there is none.</div>
+        <div class="keypad">
+          <button type="button" class="keypad-btn" onclick="press('1')">1</button>
+          <button type="button" class="keypad-btn" onclick="press('2')">2</button>
+          <button type="button" class="keypad-btn" onclick="press('3')">3</button>
+          <button type="button" class="keypad-btn" onclick="press('4')">4</button>
+          <button type="button" class="keypad-btn" onclick="press('5')">5</button>
+          <button type="button" class="keypad-btn" onclick="press('6')">6</button>
+          <button type="button" class="keypad-btn" onclick="press('7')">7</button>
+          <button type="button" class="keypad-btn" onclick="press('8')">8</button>
+          <button type="button" class="keypad-btn" onclick="press('9')">9</button>
+          <button type="button" class="keypad-btn muted" onclick="clearActive()">↻</button>
+          <button type="button" class="keypad-btn" onclick="press('0')">0</button>
+          <button type="button" class="keypad-btn muted" onclick="backspace()">⌫</button>
+        </div>
+        <button class="btn" onclick="submitNum()">Next →</button>
+      </div>
+
+      <div id="choiceArea" style="display:none;">
+        <div class="choices" id="choices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="resultScreen" style="display:none;">
+    <div class="card">
+      <div class="score-big" id="scoreBig"></div>
+      <div class="score-sub" id="scoreSub"></div>
+      <div id="partResults"></div>
+      <div class="reading" id="reading"></div>
+    </div>
+    <div class="card" id="reviewCard">
+      <h3 class="section">Review the ones you missed</h3>
+      <div id="reviewList"></div>
+    </div>
+    <button class="btn" onclick="startQuiz()">Try again</button>
+    <a class="btn secondary" href="../" style="text-align:center; text-decoration:none;">Back to Table Rush</a>
+  </div>
+</div>
+
+<script>
+  // Same Apps Script endpoint and login name as Table Rush (blank = offline preview).
+  var API_URL = 'https://script.google.com/macros/s/AKfycbzqdkoe4UXTODLPHGKGp36gZBFJKMN8OqtkY7gDu1gida4MJcghlvso5_Y0M2f16QQsBw/exec';
+  var studentId = localStorage.getItem('mm_student_name') || 'guest';
+  var LEVEL_NAME = 'Division Check';
+  var STORE_KEY = 'tr_division_check';
+  var MAX_HISTORY = 3;
+
+  var PARTS = {
+    1: { name: 'Quick Facts', zh: '乘除事實' },
+    2: { name: 'Place Value', zh: '位值與商中的 0' },
+    3: { name: 'One-Digit Divisors', zh: '1 位數除數' },
+    4: { name: 'Two-Digit Divisors', zh: '2 位數除數試商' },
+    5: { name: 'What Division Means', zh: '除法的意義' },
+    6: { name: 'Remainders', zh: '餘數判讀' }
+  };
+
+  // type: 'num' (one box), 'div' (quotient + remainder), 'choice'
+  var QUESTIONS = [
+    { part: 1, type: 'num', text: '7 × 8', ans: 56 },
+    { part: 1, type: 'num', text: '6 × 9', ans: 54 },
+    { part: 1, type: 'num', text: '8 × 8', ans: 64 },
+    { part: 1, type: 'num', text: '9 × 7', ans: 63 },
+    { part: 1, type: 'num', text: '6 × 7', ans: 42 },
+    { part: 1, type: 'num', text: '8 × 9', ans: 72 },
+    { part: 1, type: 'num', text: '56 ÷ 7', ans: 8 },
+    { part: 1, type: 'num', text: '54 ÷ 6', ans: 9 },
+    { part: 1, type: 'num', text: '48 ÷ 8', ans: 6 },
+    { part: 1, type: 'num', text: '63 ÷ 9', ans: 7 },
+    { part: 1, type: 'num', text: '42 ÷ 6', ans: 7 },
+    { part: 1, type: 'num', text: '72 ÷ 9', ans: 8 },
+
+    { part: 2, id: 'hundreds', type: 'num', story: true, text: 'How many hundreds are in 1,236?', sub: 'Type the number of hundreds.', ans: 12 },
+    { part: 2, id: 'zero1', type: 'div', text: '1,236 ÷ 6', q: 206, r: 0 },
+    { part: 2, id: 'zero2', type: 'div', text: '2,418 ÷ 3', q: 806, r: 0 },
+
+    { part: 3, type: 'div', text: '735 ÷ 5', q: 147, r: 0 },
+    { part: 3, type: 'div', text: '893 ÷ 7', q: 127, r: 4 },
+
+    { part: 4, id: 'estimate', type: 'choice', story: true, text: 'What is the best first guess for 186 ÷ 24?', options: ['5', '7', '9'], ans: '7', big: true },
+    { part: 4, id: 'adjust', type: 'choice', story: true, text: 'Sam guessed 6 for 155 ÷ 27. He found 27 × 6 = 162. Is 6 too big or too small?', options: ['Too big', 'Too small', 'Just right'], ans: 'Too big' },
+    { part: 4, id: 'fix', type: 'div', text: '155 ÷ 27', sub: 'Now fix Sam\'s answer.', q: 5, r: 20 },
+    { part: 4, type: 'div', text: '864 ÷ 24', q: 36, r: 0 },
+    { part: 4, type: 'div', text: '1,000 ÷ 23', q: 43, r: 11 },
+
+    { part: 5, id: 'groups', type: 'choice', story: true, text: 'Which story asks "how many groups" for 12 ÷ 3?', options: [
+        '12 cookies are shared equally by 3 friends. How many cookies does each friend get?',
+        '12 cookies are packed 3 in each bag. How many bags are there?',
+        'There are 3 bags with 12 cookies in each. How many cookies in all?'
+      ], ans: '12 cookies are packed 3 in each bag. How many bags are there?' },
+    { part: 5, type: 'num', story: true, text: 'You have 2 liters of juice. Each cup holds 0.25 liter. How many cups can you fill?', sub: 'Type the number of cups.', ans: 8 },
+    { part: 5, type: 'num', text: '4.8 ÷ 0.6', ans: 8 },
+    { part: 5, id: 'bigger', type: 'choice', story: true, text: 'Is the answer to 4.8 ÷ 0.6 bigger or smaller than 4.8?', options: ['Bigger', 'Smaller', 'The same'], ans: 'Bigger' },
+
+    { part: 6, id: 'vans', type: 'num', story: true, text: '50 students ride in vans. Each van holds 8 students. How many vans are needed?', sub: 'Type the number of vans.', ans: 7 },
+    { part: 6, id: 'boxes', type: 'num', story: true, text: '50 cookies go in boxes of 8. How many boxes can be filled all the way?', sub: 'Type the number of full boxes.', ans: 6 },
+    { part: 6, id: 'left', type: 'num', story: true, text: '8 kids share 50 stickers equally. How many stickers are left over?', sub: 'Type the number left over.', ans: 2 }
+  ];
+
+  var s = {};
+
+  function show(id) {
+    ['startScreen', 'quizScreen', 'resultScreen'].forEach(function (x) {
+      document.getElementById(x).style.display = (x === id) ? 'block' : 'none';
+    });
+    window.scrollTo(0, 0);
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) { return []; }
+  }
+
+  function renderLastResults() {
+    var hist = loadHistory();
+    if (!hist.length) return;
+    document.getElementById('lastResultCard').style.display = 'block';
+    document.getElementById('lastResults').innerHTML = hist.map(function (h) {
+      var flags = h.flags && h.flags.length ? 'Practice: ' + h.flags.join(', ') : 'All parts strong';
+      return '<div class="review-item"><span class="review-q">' + h.date + ' · ' + flags + '</span>' +
+        '<span class="review-a"><b>' + h.correct + '/' + h.total + '</b></span></div>';
+    }).join('');
+  }
+
+  function startQuiz() {
+    s = { i: 0, answers: [], factsStart: 0, factsSeconds: 0, qStart: 0, active: 'q', valQ: '', valR: '', timerId: null };
+    show('quizScreen');
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    var q = QUESTIONS[s.i];
+    var total = QUESTIONS.length;
+    document.getElementById('qCounter').textContent = 'QUESTION ' + (s.i + 1) + ' OF ' + total;
+    document.getElementById('partTag').textContent = 'Part ' + q.part + ' · ' + PARTS[q.part].name;
+    document.getElementById('progressFill').style.width = Math.round((s.i / total) * 100) + '%';
+
+    var t = document.getElementById('qText');
+    t.textContent = q.text;
+    t.className = 'q-text' + (q.story ? ' story' : '');
+    document.getElementById('qSub').textContent = q.sub || (q.type === 'div' ? 'Divide. Use scratch paper.' : '');
+
+    // Part 1 timer
+    var timer = document.getElementById('timer');
+    if (q.part === 1) {
+      if (!s.factsStart) {
+        s.factsStart = Date.now();
+        s.timerId = setInterval(function () {
+          timer.textContent = '⏱ ' + Math.floor((Date.now() - s.factsStart) / 1000) + 's';
+        }, 250);
+      }
+      timer.style.display = 'inline-block';
+    } else {
+      if (s.timerId) { clearInterval(s.timerId); s.timerId = null; }
+      timer.style.display = 'none';
+    }
+
+    var isChoice = q.type === 'choice';
+    document.getElementById('numArea').style.display = isChoice ? 'none' : 'block';
+    document.getElementById('choiceArea').style.display = isChoice ? 'block' : 'none';
+
+    if (isChoice) {
+      var wrap = document.getElementById('choices');
+      wrap.className = q.big ? 'choice-row' : 'choices';
+      wrap.innerHTML = '';
+      q.options.forEach(function (opt) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'choice' + (q.big ? ' big' : '');
+        b.textContent = opt;
+        b.onclick = function () { b.classList.add('selected'); setTimeout(function () { record(opt); }, 150); };
+        wrap.appendChild(b);
+      });
+    } else {
+      var showR = q.type === 'div';
+      document.getElementById('rLabel').style.display = showR ? 'inline' : 'none';
+      document.getElementById('boxR').style.display = showR ? 'flex' : 'none';
+      document.getElementById('rHelp').style.display = showR ? 'block' : 'none';
+      s.valQ = ''; s.valR = '';
+      setActive('q');
+    }
+    s.qStart = Date.now();
+  }
+
+  function setActive(which) {
+    s.active = which;
+    document.getElementById('boxQ').classList.toggle('active', which === 'q');
+    document.getElementById('boxR').classList.toggle('active', which === 'r');
+    paintBoxes();
+  }
+
+  function paintBoxes() {
+    var bq = document.getElementById('boxQ'), br = document.getElementById('boxR');
+    bq.textContent = s.valQ || '?';
+    bq.classList.toggle('empty', !s.valQ);
+    br.textContent = s.valR || '0';
+    br.classList.toggle('empty', !s.valR);
+  }
+
+  function press(d) {
+    if (s.active === 'q') { if (s.valQ.length < 6) s.valQ += d; }
+    else { if (s.valR.length < 4) s.valR += d; }
+    paintBoxes();
+  }
+  function backspace() {
+    if (s.active === 'q') s.valQ = s.valQ.slice(0, -1); else s.valR = s.valR.slice(0, -1);
+    paintBoxes();
+  }
+  function clearActive() {
+    if (s.active === 'q') s.valQ = ''; else s.valR = '';
+    paintBoxes();
+  }
+
+  function submitNum() {
+    if (!s.valQ) return;
+    var q = QUESTIONS[s.i];
+    var qv = parseInt(s.valQ, 10);
+    if (q.type === 'div') {
+      record({ q: qv, r: parseInt(s.valR || '0', 10) });
+    } else {
+      record(qv);
+    }
+  }
+
+  function isRight(q, given) {
+    if (q.type === 'div') return given.q === q.q && given.r === q.r;
+    return String(given) === String(q.ans);
+  }
+
+  function fmt(q, v) {
+    if (q.type === 'div') return v.r ? (v.q + ' R' + v.r) : String(v.q);
+    return String(v);
+  }
+  function correctText(q) {
+    if (q.type === 'div') return q.r ? (q.q + ' R' + q.r) : String(q.q);
+    return String(q.ans);
+  }
+
+  function record(given) {
+    var q = QUESTIONS[s.i];
+    var seconds = Math.round((Date.now() - s.qStart) / 100) / 10;
+    var ok = isRight(q, given);
+    s.answers.push({ q: q, given: given, ok: ok, seconds: seconds });
+
+    if (API_URL) {
+      var params = new URLSearchParams({
+        action: 'record', studentId: studentId, level: LEVEL_NAME + ' P' + q.part,
+        question: q.text, userAnswer: fmt(q, given), correctAnswer: correctText(q),
+        isCorrect: ok, seconds: seconds
+      });
+      fetch(API_URL + '?' + params.toString()).catch(function () {});
+    }
+
+    var next = QUESTIONS[s.i + 1];
+    if (q.part === 1 && (!next || next.part !== 1)) {
+      s.factsSeconds = Math.round((Date.now() - s.factsStart) / 1000);
+    }
+
+    s.i++;
+    if (s.i >= QUESTIONS.length) finish(); else renderQuestion();
+  }
+
+  // Desktop typing: digits, Backspace, R/Tab to switch box, Enter to go on.
+  document.addEventListener('keydown', function (e) {
+    if (document.getElementById('quizScreen').style.display !== 'block') return;
+    var q = QUESTIONS[s.i];
+    if (!q || q.type === 'choice') return;
+    if (/^[0-9]$/.test(e.key)) { press(e.key); e.preventDefault(); }
+    else if (e.key === 'Backspace') { backspace(); e.preventDefault(); }
+    else if (e.key === 'Enter') { submitNum(); e.preventDefault(); }
+    else if ((e.key === 'r' || e.key === 'R' || e.key === 'Tab') && q.type === 'div') {
+      setActive(s.active === 'q' ? 'r' : 'q'); e.preventDefault();
+    }
+  });
+
+  function byId(id) {
+    for (var k = 0; k < s.answers.length; k++) if (s.answers[k].q.id === id) return s.answers[k];
+    return null;
+  }
+
+  function diagnose() {
+    var parts = {};
+    for (var p = 1; p <= 6; p++) parts[p] = { right: 0, total: 0 };
+    s.answers.forEach(function (a) { parts[a.q.part].total++; if (a.ok) parts[a.q.part].right++; });
+
+    var out = [];
+    var factsOk = parts[1].right >= 11 && s.factsSeconds <= 60;
+
+    // Part 1
+    var p1 = { part: 1, status: factsOk ? 'ok' : 'flag', time: s.factsSeconds };
+    p1.text = factsOk
+      ? '<b>Facts are automatic.</b> ' + parts[1].right + '/12 in ' + s.factsSeconds + ' seconds.'
+      : '<b>Facts are not automatic yet.</b> ' + parts[1].right + '/12 in ' + s.factsSeconds + ' seconds (goal: 11+ in 60s). Slow facts use up memory you need for long division.';
+    p1.next = factsOk ? '' : 'Next step: 5 minutes a day on the 6–9 facts. Before dividing, write a multiples ladder for the divisor.';
+    out.push(p1);
+
+    // Part 2
+    var p2 = { part: 2, status: parts[2].right === parts[2].total ? 'ok' : 'flag' };
+    var notes = [];
+    var h = byId('hundreds'); if (h && !h.ok && (h.given === 2 || h.given === 1)) notes.push('read only one digit for "how many hundreds" (answer is 12)');
+    var z1 = byId('zero1'); if (z1 && !z1.ok && z1.given.q === 26) notes.push('wrote 26 instead of 206');
+    var z2 = byId('zero2'); if (z2 && !z2.ok && z2.given.q === 86) notes.push('wrote 86 instead of 806');
+    p2.text = p2.status === 'ok'
+      ? '<b>Place value is solid,</b> including zeros in the answer.'
+      : '<b>Zeros or place value got lost.</b>' + (notes.length ? ' You ' + notes.join('; ') + '.' : '');
+    p2.next = p2.status === 'ok' ? '' : 'Next step: say "12 hundreds ÷ 6" out loud, and estimate first (1,236 ÷ 6 ≈ 200) to catch a missing zero.';
+    out.push(p2);
+
+    // Part 3
+    var p3 = { part: 3, status: parts[3].right === parts[3].total ? 'ok' : 'flag' };
+    p3.text = p3.status === 'ok'
+      ? '<b>One-digit division steps are working.</b>'
+      : (factsOk ? '<b>The steps slip</b> even though facts are fine — usually a subtract or bring-down mistake.'
+                 : '<b>Steps slip,</b> probably because the facts take too long.');
+    p3.next = p3.status === 'ok' ? '' : 'Next step: try partial quotients (take away easy groups like 100, 50, 10) and use a divide–multiply–subtract–bring down checklist.';
+    out.push(p3);
+
+    // Part 4
+    var est = byId('estimate'), adj = byId('adjust');
+    var estimateWeak = (est && !est.ok) || (adj && !adj.ok);
+    var p4 = { part: 4, status: parts[4].right === parts[4].total ? 'ok' : (estimateWeak ? 'flag' : 'watch') };
+    p4.text = p4.status === 'ok'
+      ? '<b>Guessing and fixing with 2-digit divisors is strong.</b>'
+      : (estimateWeak ? '<b>The first guess is the hard part.</b> Choosing and fixing a quotient digit is not secure yet.'
+                      : '<b>Guessing is fine,</b> but a calculation slipped on a longer problem.');
+    p4.next = p4.status === 'ok' ? '' : 'Next step: round the divisor (24 → 20 or 25) to guess. Too big? Take 1 away. Remainder bigger than the divisor? Add 1.';
+    out.push(p4);
+
+    // Part 5
+    var g = byId('groups'), bg = byId('bigger');
+    var meaningWeak = (g && !g.ok) || (bg && !bg.ok);
+    var p5 = { part: 5, status: parts[5].right === parts[5].total ? 'ok' : (meaningWeak ? 'flag' : 'watch') };
+    p5.text = p5.status === 'ok'
+      ? '<b>Understands both meanings of division,</b> including decimals.'
+      : (meaningWeak ? '<b>Division is seen only as "sharing."</b> The "how many groups" meaning is not there yet, so dividing by a decimal feels wrong.'
+                     : '<b>Meaning is there,</b> but a decimal calculation slipped.');
+    p5.next = p5.status === 'ok' ? '' : 'Next step: read 4.8 ÷ 0.6 as "how many 0.6s fit in 4.8?" and jump on a number line. It equals 48 ÷ 6.';
+    out.push(p5);
+
+    // Part 6
+    var vans = byId('vans');
+    var p6 = { part: 6, status: parts[6].right === parts[6].total ? 'ok' : 'flag' };
+    p6.text = p6.status === 'ok'
+      ? '<b>Remainders are read correctly</b> for each situation.'
+      : '<b>The remainder is handled the same way every time.</b>' + (vans && !vans.ok && vans.given === 6 ? ' 6 vans leaves 2 students behind.' : '');
+    p6.next = p6.status === 'ok' ? '' : 'Next step: after dividing, ask "What does the leftover mean here?" — round up, drop it, or it is the answer.';
+    out.push(p6);
+
+    out.forEach(function (o) { o.right = parts[o.part].right; o.total = parts[o.part].total; });
+
+    // Reading order
+    var flagged = out.filter(function (o) { return o.status === 'flag'; }).map(function (o) { return o.part; });
+    var reading;
+    if (!flagged.length) {
+      reading = '<b>Ready for more.</b> Every part is strong. Move on to harder 2-digit divisors and decimal division.';
+    } else if (!factsOk && (flagged.indexOf(3) !== -1 || flagged.indexOf(4) !== -1)) {
+      reading = '<b>Start with facts.</b> Slow facts are the root of the long-division trouble. Fix Part 1 first, then come back to Parts 3–4.';
+    } else if (factsOk && flagged.indexOf(2) !== -1) {
+      reading = '<b>Start with place value.</b> Facts are fine, so fix how zeros and hundreds are handled before more long-division practice.';
+    } else if (flagged.every(function (p) { return p >= 5; })) {
+      reading = '<b>Calculation is fine; meaning needs work.</b> Practice story problems and talk about what the answer means.';
+    } else {
+      reading = '<b>Practice the flagged parts in order,</b> starting with Part ' + flagged[0] + '.';
+    }
+    return { parts: out, reading: reading, flagged: flagged };
+  }
+
+  function finish() {
+    if (s.timerId) { clearInterval(s.timerId); s.timerId = null; }
+    document.getElementById('progressFill').style.width = '100%';
+    var d = diagnose();
+    var correct = s.answers.filter(function (a) { return a.ok; }).length;
+    var total = s.answers.length;
+
+    document.getElementById('scoreBig').textContent = correct + ' / ' + total;
+    document.getElementById('scoreSub').textContent = 'Here is what to practice next';
+
+    document.getElementById('partResults').innerHTML = d.parts.map(function (o) {
+      var cls = o.status === 'ok' ? '' : (o.status === 'watch' ? ' watch' : ' flag');
+      var color = o.status === 'ok' ? 'var(--good)' : (o.status === 'watch' ? 'var(--warn)' : 'var(--bad)');
+      var pct = Math.round((o.right / o.total) * 100);
+      var badge = o.status === 'ok' ? '✓ Strong' : (o.status === 'watch' ? '• Check' : '⚠ Practice');
+      return '<div class="part-result' + cls + '">' +
+        '<div class="pr-head"><span class="pr-name">' + o.part + '. ' + PARTS[o.part].name + '<span class="pr-zh">' + PARTS[o.part].zh + '</span></span>' +
+        '<span class="pr-score" style="color:' + color + '">' + badge + ' · ' + o.right + '/' + o.total + '</span></div>' +
+        '<div class="pr-bar"><div class="pr-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
+        '<div class="pr-text">' + o.text + '</div>' +
+        (o.next ? '<div class="pr-next">' + o.next + '</div>' : '') +
+        '</div>';
+    }).join('');
+    document.getElementById('reading').innerHTML = d.reading;
+
+    var missed = s.answers.filter(function (a) { return !a.ok; });
+    document.getElementById('reviewCard').style.display = missed.length ? 'block' : 'none';
+    document.getElementById('reviewList').innerHTML = missed.map(function (a) {
+      return '<div class="review-item"><span class="review-q">' + a.q.text + '</span>' +
+        '<span class="review-a"><span class="yours">' + fmt(a.q, a.given) + '</span> → <span class="right">' + correctText(a.q) + '</span></span></div>';
+    }).join('');
+
+    var dt = new Date();
+    var hist = loadHistory();
+    hist.unshift({
+      date: (dt.getMonth() + 1) + '/' + dt.getDate(),
+      correct: correct, total: total, factsSeconds: s.factsSeconds,
+      flags: d.flagged.map(function (p) { return 'P' + p; })
+    });
+    if (hist.length > MAX_HISTORY) hist.length = MAX_HISTORY;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(hist)); } catch (e) {}
+
+    show('resultScreen');
+  }
+
+  renderLastResults();
+</script>
+</body>
+</html>

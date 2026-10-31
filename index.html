@@ -68,6 +68,9 @@
   .game-link .level-icon { background: #2e9650; margin-bottom: 0; flex: none; }
   .game-link .game-text { flex: 1; min-width: 0; }
   .game-link .go { font-size: 22px; font-weight: 800; color: #2e9650; flex: none; }
+  .div-link { border-color: #e0803a; }
+  .div-link .level-icon { background: #e0803a; }
+  .div-link .go { color: #e0803a; }
 
   #gameScreen { max-width: 480px; margin: 0 auto; display: none; }
   .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 14px; }
@@ -348,6 +351,22 @@
       </div>
       <span class="go" aria-hidden="true">→</span>
     </a>
+    <a class="level-card game-link div-link" href="division-check/">
+      <div class="level-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="5.5" r="2" fill="white"/>
+          <path d="M4 12h16" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="12" cy="18.5" r="2" fill="white"/>
+        </svg>
+      </div>
+      <div class="game-text">
+        <h3>Division Check 除法診斷</h3>
+        <div class="range-badge">29 questions · 6 parts · Grade 4 → 5</div>
+        <p>Find which part of division to practice next</p>
+        <div class="level-progress" id="progress-DivisionCheck"></div>
+      </div>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
   </div>
 </div>
 
@@ -570,6 +589,25 @@
 
       container.innerHTML = rowsHtml;
     });
+    renderDivisionCheckProgress();
+  }
+
+  // Division Check stores its last results under its own key (see division-check/index.html).
+  function renderDivisionCheckProgress() {
+    var container = document.getElementById('progress-DivisionCheck');
+    if (!container) return;
+    var hist;
+    try { hist = JSON.parse(localStorage.getItem('tr_division_check')) || []; } catch (e) { hist = []; }
+    if (!hist.length) { container.innerHTML = '<div class="level-progress-empty">Not started yet</div>'; return; }
+    container.innerHTML = hist.slice(0, MAX_HISTORY).map(function (h) {
+      var pct = Math.round((h.correct / h.total) * 100);
+      var tier = pct >= 90 ? 'tier-high' : (pct >= 60 ? 'tier-mid' : 'tier-low');
+      return '<div class="level-progress-row">' +
+        '<span class="level-progress-date">' + h.date + '</span>' +
+        '<div class="level-progress-bar"><div class="level-progress-fill ' + tier + '" style="width:' + pct + '%;"></div></div>' +
+        '<span class="level-progress-pct">' + pct + '%</span>' +
+        '</div>';
+    }).join('');
   }
 
   if (studentId) {
